@@ -1,4 +1,4 @@
-const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8000/api/v1";
+const API_URL = import.meta.env.VITE_API_URL || "/api/v1";
 
 type RequestOptions = {
   method?: string;
@@ -8,10 +8,7 @@ type RequestOptions = {
 
 class ApiError extends Error {
   status: number;
-  constructor(
-    status: number,
-    message: string,
-  ) {
+  constructor(status: number, message: string) {
     super(message);
     this.name = "ApiError";
     this.status = status;
@@ -23,7 +20,10 @@ function getAuthHeaders(): Record<string, string> {
   return token ? { Authorization: `Bearer ${token}` } : {};
 }
 
-async function request<T>(endpoint: string, options: RequestOptions = {}): Promise<T> {
+async function request<T>(
+  endpoint: string,
+  options: RequestOptions = {},
+): Promise<T> {
   const { method = "GET", body, headers = {} } = options;
   const response = await fetch(`${API_URL}${endpoint}`, {
     method,
@@ -36,8 +36,12 @@ async function request<T>(endpoint: string, options: RequestOptions = {}): Promi
   });
 
   if (!response.ok) {
-    const error = await response.json().catch(() => ({ error: { message: "Request failed" } }));
-    throw new ApiError(response.status, error.error?.message || "Request failed");
+    const error = await response
+      .json()
+      .catch(() => ({ detail: "Request failed" }));
+    const message =
+      error.detail || error.error?.message || error.message || "Request failed";
+    throw new ApiError(response.status, message);
   }
 
   return response.json();
@@ -45,9 +49,12 @@ async function request<T>(endpoint: string, options: RequestOptions = {}): Promi
 
 export const api = {
   get: <T>(endpoint: string) => request<T>(endpoint),
-  post: <T>(endpoint: string, body?: unknown) => request<T>(endpoint, { method: "POST", body }),
-  patch: <T>(endpoint: string, body?: unknown) => request<T>(endpoint, { method: "PATCH", body }),
-  delete: <T>(endpoint: string) => request<T>(endpoint, { method: "DELETE" }),
+  post: <T>(endpoint: string, body?: unknown) =>
+    request<T>(endpoint, { method: "POST", body }),
+  patch: <T>(endpoint: string, body?: unknown) =>
+    request<T>(endpoint, { method: "PATCH", body }),
+  delete: <T>(endpoint: string) =>
+    request<T>(endpoint, { method: "DELETE" }),
 
   upload: async <T>(endpoint: string, file: File): Promise<T> => {
     const formData = new FormData();

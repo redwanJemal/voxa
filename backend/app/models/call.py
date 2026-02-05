@@ -38,7 +38,7 @@ class Call(BaseModel):
     transcript: Mapped[str | None] = mapped_column(Text)
     summary: Mapped[str | None] = mapped_column(Text)
     sentiment_score: Mapped[float | None] = mapped_column(Float)
-    metadata: Mapped[dict] = mapped_column(JSONB, default=dict)
+    call_metadata: Mapped[dict] = mapped_column("metadata", JSONB, default=dict)
     cost_cents: Mapped[int] = mapped_column(Integer, default=0)
 
     agent = relationship("Agent", back_populates="calls")

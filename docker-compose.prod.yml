@@ -1,0 +1,78 @@
+services:
+  frontend:
+    build: ./frontend
+    container_name: voxa-frontend
+    restart: unless-stopped
+    networks:
+      - voxa-internal
+      - coolify
+    labels:
+      - traefik.enable=true
+      - "traefik.http.routers.voxa.rule=Host(`voxa.redwanjemal.dev`)"
+      - traefik.http.routers.voxa.entrypoints=https
+      - traefik.http.routers.voxa.tls=true
+      - traefik.http.routers.voxa.tls.certresolver=letsencrypt
+      - traefik.http.services.voxa.loadbalancer.server.port=80
+
+  backend:
+    build: ./backend
+    container_name: voxa-backend
+    restart: unless-stopped
+    env_file: .env
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - voxa-internal
+      - coolify
+    labels:
+      - traefik.enable=true
+      - "traefik.http.routers.voxa-api.rule=Host(`voxa.redwanjemal.dev`) && PathPrefix(`/api`)"
+      - traefik.http.routers.voxa-api.entrypoints=https
+      - traefik.http.routers.voxa-api.tls=true
+      - traefik.http.routers.voxa-api.tls.certresolver=letsencrypt
+      - traefik.http.routers.voxa-api.priority=100
+      - traefik.http.services.voxa-api.loadbalancer.server.port=8000
+
+  postgres:
+    image: postgres:16-alpine
+    container_name: voxa-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-voxa}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-voxa_secret}
+      POSTGRES_DB: ${POSTGRES_DB:-voxa}
+    volumes:
+      - voxa_postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-voxa}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - voxa-internal
+
+  redis:
+    image: redis:7-alpine
+    container_name: voxa-redis
+    restart: unless-stopped
+    volumes:
+      - voxa_redis:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - voxa-internal
+
+volumes:
+  voxa_postgres:
+  voxa_redis:
+
+networks:
+  voxa-internal:
+  coolify:
+    external: true

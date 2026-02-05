@@ -26,7 +26,8 @@ def create_app() -> FastAPI:
         title=settings.APP_NAME,
         version=settings.APP_VERSION,
         description="AI Voice Agent Platform",
-        docs_url="/docs",
+        docs_url="/api/docs",
+        openapi_url="/api/openapi.json",
         lifespan=lifespan,
     )
     _add_middleware(application)
@@ -51,8 +52,12 @@ def _include_routers(application: FastAPI) -> None:
     """Include API routers."""
     application.include_router(v1_router, prefix="/api/v1")
 
-    @application.get("/health")
+    @application.get("/api/v1/health")
     async def health_check() -> dict[str, str]:
+        return {"status": "healthy", "version": settings.APP_VERSION}
+
+    @application.get("/health")
+    async def root_health() -> dict[str, str]:
         return {"status": "healthy", "version": settings.APP_VERSION}
 
 

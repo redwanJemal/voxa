@@ -11,9 +11,13 @@ export function useAuth() {
   return {
     user: store.user,
     token: store.token,
-    organization: store.organization,
     isAuthenticated: store.isAuthenticated,
+    isLoading: store.isLoading,
+    error: store.error,
     login: store.login,
+    register: store.register,
     logout: store.logout,
+    fetchMe: store.fetchMe,
+    clearError: store.clearError,
   };
 }

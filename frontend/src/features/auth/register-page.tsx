@@ -13,21 +13,37 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useAuthStore } from "@/stores/auth-store";
 
-export function LoginPage() {
+export function RegisterPage() {
   const navigate = useNavigate();
-  const { login, isLoading, error, clearError } = useAuthStore();
+  const { register, isLoading, error, clearError } = useAuthStore();
+  const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [localError, setLocalError] = useState("");
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setLocalError("");
+
+    if (password !== confirmPassword) {
+      setLocalError("Passwords do not match");
+      return;
+    }
+    if (password.length < 8) {
+      setLocalError("Password must be at least 8 characters");
+      return;
+    }
+
     try {
-      await login(email, password);
+      await register(name, email, password);
       navigate("/dashboard");
     } catch {
       // error is set in store
     }
   };
+
+  const displayError = localError || error;
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-muted/30 px-4">
@@ -39,18 +55,33 @@ export function LoginPage() {
             </div>
             <span className="text-2xl font-bold">Voxa</span>
           </Link>
-          <CardTitle>Welcome back</CardTitle>
+          <CardTitle>Create your account</CardTitle>
           <CardDescription>
-            Sign in to manage your voice agents
+            Get started with Voxa in seconds
           </CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
-            {error && (
+            {displayError && (
               <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">
-                {error}
+                {displayError}
               </div>
             )}
+            <div className="space-y-2">
+              <Label htmlFor="name">Full Name</Label>
+              <Input
+                id="name"
+                type="text"
+                placeholder="John Doe"
+                value={name}
+                onChange={(e) => {
+                  setName(e.target.value);
+                  clearError();
+                  setLocalError("");
+                }}
+                required
+              />
+            </div>
             <div className="space-y-2">
               <Label htmlFor="email">Email</Label>
               <Input
@@ -61,6 +92,7 @@ export function LoginPage() {
                 onChange={(e) => {
                   setEmail(e.target.value);
                   clearError();
+                  setLocalError("");
                 }}
                 required
               />
@@ -70,11 +102,27 @@ export function LoginPage() {
               <Input
                 id="password"
                 type="password"
-                placeholder="••••••••"
+                placeholder="Min. 8 characters"
                 value={password}
                 onChange={(e) => {
                   setPassword(e.target.value);
                   clearError();
+                  setLocalError("");
+                }}
+                required
+                minLength={8}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="confirmPassword">Confirm Password</Label>
+              <Input
+                id="confirmPassword"
+                type="password"
+                placeholder="Repeat your password"
+                value={confirmPassword}
+                onChange={(e) => {
+                  setConfirmPassword(e.target.value);
+                  setLocalError("");
                 }}
                 required
               />
@@ -88,17 +136,17 @@ export function LoginPage() {
               {isLoading ? (
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
               ) : null}
-              Sign In
+              Create Account
             </Button>
           </form>
 
           <p className="mt-6 text-center text-sm text-muted-foreground">
-            Don&apos;t have an account?{" "}
+            Already have an account?{" "}
             <Link
-              to="/register"
+              to="/login"
               className="font-medium text-primary hover:underline"
             >
-              Create one
+              Sign in
             </Link>
           </p>
         </CardContent>
