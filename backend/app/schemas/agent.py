@@ -11,6 +11,7 @@ class AgentCreate(BaseModel):
     description: str | None = None
     system_prompt: str = "You are a helpful assistant."
     greeting_message: str = "Hello! How can I help you today?"
+    llm_provider: str = "openai"
     llm_model: str = "gpt-4o-mini"
     stt_provider: str = "deepgram"
     tts_provider: str = "deepgram"
@@ -25,6 +26,7 @@ class AgentUpdate(BaseModel):
     description: str | None = None
     system_prompt: str | None = None
     greeting_message: str | None = None
+    llm_provider: str | None = None
     llm_model: str | None = None
     stt_provider: str | None = None
     tts_provider: str | None = None
@@ -42,6 +44,7 @@ class AgentResponse(BaseModel):
     description: str | None
     system_prompt: str
     greeting_message: str
+    llm_provider: str
     llm_model: str
     stt_provider: str
     tts_provider: str
@@ -60,6 +63,7 @@ class AgentBrief(BaseModel):
     id: UUID
     name: str
     description: str | None
+    llm_provider: str
     llm_model: str
     language: str
     is_active: bool

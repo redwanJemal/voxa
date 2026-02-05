@@ -12,8 +12,8 @@ logger = structlog.get_logger("stt")
 class STTService:
     """Deepgram Speech-to-Text service."""
 
-    def __init__(self) -> None:
-        self.api_key = settings.DEEPGRAM_API_KEY
+    def __init__(self, api_key: str | None = None) -> None:
+        self.api_key = api_key or settings.DEEPGRAM_API_KEY
 
     async def transcribe(self, audio_data: bytes, language: str = "en") -> str:
         """Transcribe audio bytes to text."""

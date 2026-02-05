@@ -10,8 +10,8 @@ logger = structlog.get_logger("tts")
 class TTSService:
     """Deepgram Text-to-Speech service."""
 
-    def __init__(self, voice: str = "aura-asteria-en") -> None:
-        self.api_key = settings.DEEPGRAM_API_KEY
+    def __init__(self, voice: str = "aura-asteria-en", api_key: str | None = None) -> None:
+        self.api_key = api_key or settings.DEEPGRAM_API_KEY
         self.voice = voice
 
     async def synthesize(self, text: str) -> bytes:

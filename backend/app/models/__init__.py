@@ -7,6 +7,7 @@ from app.models.base import TimestampMixin
 from app.models.call import Call
 from app.models.knowledge_base import Document, KnowledgeBase
 from app.models.organization import Organization
+from app.models.provider_key import ProviderKey
 from app.models.usage import UsageRecord
 from app.models.user import User
 
@@ -18,6 +19,7 @@ __all__ = [
     "Document",
     "KnowledgeBase",
     "Organization",
+    "ProviderKey",
     "TimestampMixin",
     "UsageRecord",
     "User",

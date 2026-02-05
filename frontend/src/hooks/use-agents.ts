@@ -5,6 +5,7 @@ type Agent = {
   id: string;
   name: string;
   description: string | null;
+  llm_provider: string;
   llm_model: string;
   language: string;
   is_active: boolean;

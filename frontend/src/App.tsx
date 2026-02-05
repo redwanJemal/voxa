@@ -12,6 +12,7 @@ import { AgentDetailPage } from "@/features/agents/agent-detail-page";
 import { CallsPage } from "@/features/calls/calls-page";
 import { AnalyticsPage } from "@/features/analytics/analytics-page";
 import { BillingPage } from "@/features/billing/billing-page";
+import { SettingsPage } from "@/features/settings/settings-page";
 import "./index.css";
 
 const queryClient = new QueryClient({
@@ -42,19 +43,6 @@ function DashboardHome() {
           <p className="text-sm text-muted-foreground">Knowledge Docs</p>
           <p className="mt-1 text-3xl font-bold">0</p>
         </div>
-      </div>
-    </div>
-  );
-}
-
-function SettingsPage() {
-  return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold">Settings</h1>
-        <p className="text-muted-foreground">
-          Manage your account and organization settings.
-        </p>
       </div>
     </div>
   );

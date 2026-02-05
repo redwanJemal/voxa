@@ -23,6 +23,7 @@ class Agent(BaseModel):
     greeting_message: Mapped[str] = mapped_column(
         String(1000), default="Hello! How can I help you today?"
     )
+    llm_provider: Mapped[str] = mapped_column(String(50), default="openai")
     llm_model: Mapped[str] = mapped_column(String(100), default="gpt-4o-mini")
     stt_provider: Mapped[str] = mapped_column(String(50), default="deepgram")
     tts_provider: Mapped[str] = mapped_column(String(50), default="deepgram")
