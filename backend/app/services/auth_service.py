@@ -1,6 +1,8 @@
 """Authentication service — Email/Password + Google OAuth + JWT."""
 
+import asyncio
 from datetime import UTC, datetime
+from functools import partial
 
 import httpx
 import structlog
@@ -47,10 +49,13 @@ async def register_user(
     db.add(org)
     await db.flush()
 
+    loop = asyncio.get_event_loop()
+    hashed = await loop.run_in_executor(None, partial(hash_password, password))
+
     user = User(
         email=email,
         name=name,
-        password_hash=hash_password(password),
+        password_hash=hashed,
         auth_provider=AuthProvider.EMAIL,
         organization_id=org.id,
         role=UserRole.OWNER,
@@ -71,7 +76,11 @@ async def login_user(email: str, password: str, db: AsyncSession) -> TokenRespon
     if not user or not user.password_hash:
         raise UnauthorizedException("Invalid email or password")
 
-    if not verify_password(password, user.password_hash):
+    loop = asyncio.get_event_loop()
+    valid = await loop.run_in_executor(
+        None, partial(verify_password, password, user.password_hash)
+    )
+    if not valid:
         raise UnauthorizedException("Invalid email or password")
 
     if not user.is_active:
