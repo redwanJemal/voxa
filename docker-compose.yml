@@ -1,0 +1,95 @@
+services:
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    ports:
+      - "5173:80"
+    depends_on:
+      - backend
+    environment:
+      - VITE_API_URL=${VITE_API_URL:-http://localhost:8000/api/v1}
+    networks:
+      - voxa-network
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      qdrant:
+        condition: service_started
+    networks:
+      - voxa-network
+
+  celery-worker:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    command: celery -A app.worker worker --loglevel=info
+    env_file:
+      - .env
+    depends_on:
+      - backend
+      - redis
+    networks:
+      - voxa-network
+
+  postgres:
+    image: postgres:16-alpine
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-voxa}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-voxa_secret}
+      POSTGRES_DB: ${POSTGRES_DB:-voxa}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-voxa}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - voxa-network
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - voxa-network
+
+  qdrant:
+    image: qdrant/qdrant:latest
+    ports:
+      - "6333:6333"
+      - "6334:6334"
+    volumes:
+      - qdrant-data:/qdrant/storage
+    networks:
+      - voxa-network
+
+volumes:
+  postgres-data:
+  redis-data:
+  qdrant-data:
+
+networks:
+  voxa-network:
+    driver: bridge

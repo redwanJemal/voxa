@@ -1,0 +1,65 @@
+"""Qdrant-based hybrid retriever for RAG."""
+
+import structlog
+from qdrant_client import AsyncQdrantClient
+from qdrant_client.models import Distance, PointStruct, VectorParams
+
+from app.core.config import settings
+from app.rag.embeddings import EMBEDDING_DIMENSIONS, generate_embedding
+
+logger = structlog.get_logger("retriever")
+
+_qdrant_client: AsyncQdrantClient | None = None
+
+
+async def get_qdrant() -> AsyncQdrantClient:
+    """Get or create Qdrant client."""
+    global _qdrant_client
+    if _qdrant_client is None:
+        _qdrant_client = AsyncQdrantClient(url=settings.QDRANT_URL)
+    return _qdrant_client
+
+
+async def ensure_collection(collection_name: str) -> None:
+    """Create collection if it doesn't exist."""
+    client = await get_qdrant()
+    collections = await client.get_collections()
+    names = [c.name for c in collections.collections]
+    if collection_name not in names:
+        await client.create_collection(
+            collection_name=collection_name,
+            vectors_config=VectorParams(size=EMBEDDING_DIMENSIONS, distance=Distance.COSINE),
+        )
+        logger.info("collection_created", name=collection_name)
+
+
+async def upsert_chunks(
+    collection_name: str, chunks: list[str], embeddings: list[list[float]],
+    doc_id: str, metadata: dict | None = None,
+) -> int:
+    """Upsert text chunks with their embeddings into Qdrant."""
+    client = await get_qdrant()
+    points = [
+        PointStruct(
+            id=f"{doc_id}_{i}",
+            vector=embedding,
+            payload={"content": chunk, "document_id": doc_id, "chunk_index": i, **(metadata or {})},
+        )
+        for i, (chunk, embedding) in enumerate(zip(chunks, embeddings))
+    ]
+    await client.upsert(collection_name=collection_name, points=points)
+    return len(points)
+
+
+async def search(collection_name: str, query: str, top_k: int = 5) -> list[dict]:
+    """Search collection using dense vector similarity."""
+    client = await get_qdrant()
+    query_embedding = await generate_embedding(query)
+    results = await client.search(
+        collection_name=collection_name, query_vector=query_embedding, limit=top_k
+    )
+    return [
+        {"content": r.payload.get("content", ""), "score": r.score,
+         "document_id": r.payload.get("document_id", ""), "metadata": r.payload}
+        for r in results
+    ]

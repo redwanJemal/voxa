@@ -1,0 +1,34 @@
+services:
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      target: dev
+    ports:
+      - "5173:5173"
+    volumes:
+      - ./frontend/src:/app/src
+      - ./frontend/public:/app/public
+    command: npm run dev -- --host 0.0.0.0
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+      target: dev
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./backend/app:/app/app
+    command: >
+      uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+
+  celery-worker:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+      target: dev
+    volumes:
+      - ./backend/app:/app/app
+    command: >
+      celery -A app.worker worker --loglevel=debug --autoscale=2,1

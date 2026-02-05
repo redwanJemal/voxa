@@ -1,0 +1,59 @@
+# Dependencies
+node_modules/
+__pycache__/
+*.pyc
+*.pyo
+.pnp.*
+.yarn/
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# Build outputs
+dist/
+build/
+*.egg-info/
+*.egg
+.eggs/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Python
+.venv/
+venv/
+.mypy_cache/
+.ruff_cache/
+.pytest_cache/
+htmlcov/
+.coverage
+*.cover
+
+# Node
+*.tsbuildinfo
+.eslintcache
+
+# Docker
+docker-compose.override.yml
+
+# Logs
+*.log
+logs/
+
+# Database
+*.db
+*.sqlite3
+
+# Uploads
+uploads/
+media/
+
+# Alembic
+alembic/versions/*.pyc
