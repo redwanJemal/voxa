@@ -2,11 +2,13 @@
 
 from uuid import UUID
 
+import structlog
 from fastapi import APIRouter, Depends, UploadFile
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_current_org_id
 from app.core.database import get_db
+from app.rag.retriever import search as rag_search
 from app.schemas.common import MessageResponse
 from app.schemas.knowledge_base import (
     DocumentResponse,
@@ -16,6 +18,8 @@ from app.schemas.knowledge_base import (
     SearchResult,
 )
 from app.services import knowledge_base_service
+
+logger = structlog.get_logger("kb_api")
 
 router = APIRouter()
 
@@ -45,6 +49,16 @@ async def create_knowledge_base(
     return await knowledge_base_service.create_knowledge_base(agent_id, body, db)
 
 
+@router.get("/knowledge-bases/{kb_id}/documents", response_model=list[DocumentResponse])
+async def list_documents(
+    kb_id: UUID,
+    org_id: UUID = Depends(get_current_org_id),
+    db: AsyncSession = Depends(get_db),
+):
+    """List all documents in a knowledge base."""
+    return await knowledge_base_service.list_documents(kb_id, db)
+
+
 @router.post("/knowledge-bases/{kb_id}/documents", response_model=DocumentResponse, status_code=201)
 async def upload_document(
     kb_id: UUID,
@@ -55,8 +69,12 @@ async def upload_document(
     """Upload a document to a knowledge base."""
     content = await file.read()
     return await knowledge_base_service.upload_document(
-        kb_id, file.filename or "untitled", file.content_type or "application/octet-stream",
-        len(content), db
+        kb_id,
+        file.filename or "untitled",
+        file.content_type or "application/octet-stream",
+        len(content),
+        content,
+        db,
     )
 
 
@@ -78,5 +96,19 @@ async def search_knowledge_base(
     body: SearchQuery,
     org_id: UUID = Depends(get_current_org_id),
 ):
-    """Search a knowledge base (test endpoint)."""
-    return []
+    """Search a knowledge base."""
+    collection_name = f"kb_{kb_id}"
+    try:
+        results = await rag_search(collection_name, body.query, body.top_k)
+        return [
+            SearchResult(
+                content=r["content"],
+                score=r["score"],
+                document_id=r["document_id"],
+                metadata=r.get("metadata", {}),
+            )
+            for r in results
+        ]
+    except Exception as exc:
+        logger.warning("search_failed", kb_id=str(kb_id), error=str(exc))
+        return []

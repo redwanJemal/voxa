@@ -22,6 +22,7 @@ class Settings(BaseSettings):
 
     # Qdrant
     QDRANT_URL: str = "http://localhost:6333"
+    QDRANT_API_KEY: str = ""
 
     # JWT
     JWT_SECRET: str = "change-me-jwt-secret-key"

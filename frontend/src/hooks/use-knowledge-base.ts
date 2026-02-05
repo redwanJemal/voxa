@@ -24,6 +24,13 @@ type Document = {
   created_at: string;
 };
 
+type SearchResult = {
+  content: string;
+  score: number;
+  document_id: string;
+  metadata: Record<string, unknown>;
+};
+
 export function useKnowledgeBases(agentId: string) {
   return useQuery({
     queryKey: ["knowledge-bases", agentId],
@@ -41,11 +48,30 @@ export function useCreateKnowledgeBase(agentId: string) {
   });
 }
 
+export function useDocuments(kbId: string) {
+  return useQuery({
+    queryKey: ["documents", kbId],
+    queryFn: () => api.get<Document[]>(`/knowledge-bases/${kbId}/documents`),
+    enabled: !!kbId,
+    refetchInterval: (query) => {
+      // Poll while any document is pending/processing
+      const docs = query.state.data;
+      if (docs?.some((d) => d.status === "pending" || d.status === "processing")) {
+        return 3000;
+      }
+      return false;
+    },
+  });
+}
+
 export function useUploadDocument(kbId: string) {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (file: File) => api.upload<Document>(`/knowledge-bases/${kbId}/documents`, file),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["knowledge-bases"] }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["knowledge-bases"] });
+      queryClient.invalidateQueries({ queryKey: ["documents", kbId] });
+    },
   });
 }
 
@@ -53,6 +79,16 @@ export function useDeleteDocument(kbId: string) {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (docId: string) => api.delete(`/knowledge-bases/${kbId}/documents/${docId}`),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["knowledge-bases"] }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["knowledge-bases"] });
+      queryClient.invalidateQueries({ queryKey: ["documents", kbId] });
+    },
+  });
+}
+
+export function useSearchKnowledgeBase(kbId: string) {
+  return useMutation({
+    mutationFn: (data: { query: string; top_k?: number }) =>
+      api.post<SearchResult[]>(`/knowledge-bases/${kbId}/search`, data),
   });
 }

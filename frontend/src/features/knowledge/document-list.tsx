@@ -1,6 +1,7 @@
-import { FileText, Trash2 } from "lucide-react";
+import { FileText, Trash2, Loader2, AlertCircle, CheckCircle2, Clock } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { formatDate } from "@/lib/utils";
 
 type Document = {
@@ -10,6 +11,7 @@ type Document = {
   size_bytes: number;
   chunk_count: number;
   status: string;
+  error_message?: string | null;
   created_at: string;
 };
 
@@ -24,11 +26,30 @@ function formatBytes(bytes: number): string {
   return `${(bytes / 1048576).toFixed(1)} MB`;
 }
 
-const statusColors: Record<string, "default" | "secondary" | "destructive" | "outline"> = {
-  completed: "default",
-  processing: "secondary",
-  pending: "outline",
-  failed: "destructive",
+const statusConfig: Record<
+  string,
+  { variant: "default" | "secondary" | "destructive" | "outline"; icon: React.ReactNode; label: string }
+> = {
+  completed: {
+    variant: "default",
+    icon: <CheckCircle2 className="h-3 w-3" />,
+    label: "Completed",
+  },
+  processing: {
+    variant: "secondary",
+    icon: <Loader2 className="h-3 w-3 animate-spin" />,
+    label: "Processing",
+  },
+  pending: {
+    variant: "outline",
+    icon: <Clock className="h-3 w-3" />,
+    label: "Pending",
+  },
+  failed: {
+    variant: "destructive",
+    icon: <AlertCircle className="h-3 w-3" />,
+    label: "Failed",
+  },
 };
 
 export function DocumentList({ documents, onDelete }: Props) {
@@ -42,25 +63,50 @@ export function DocumentList({ documents, onDelete }: Props) {
 
   return (
     <div className="space-y-2">
-      {documents.map((doc) => (
-        <div key={doc.id} className="flex items-center justify-between rounded-lg border p-3">
-          <div className="flex items-center gap-3">
-            <FileText className="h-5 w-5 text-muted-foreground" />
-            <div>
-              <p className="text-sm font-medium">{doc.filename}</p>
-              <p className="text-xs text-muted-foreground">
-                {formatBytes(doc.size_bytes)} · {doc.chunk_count} chunks · {formatDate(doc.created_at)}
-              </p>
+      {documents.map((doc) => {
+        const config = statusConfig[doc.status] || statusConfig.pending;
+        return (
+          <div key={doc.id} className="flex items-center justify-between rounded-lg border p-3">
+            <div className="flex items-center gap-3">
+              <FileText className="h-5 w-5 text-muted-foreground" />
+              <div>
+                <p className="text-sm font-medium">{doc.filename}</p>
+                <p className="text-xs text-muted-foreground">
+                  {formatBytes(doc.size_bytes)}
+                  {doc.status === "completed" && ` · ${doc.chunk_count} chunks`}
+                  {" · "}
+                  {formatDate(doc.created_at)}
+                </p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              {doc.status === "failed" && doc.error_message ? (
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Badge variant={config.variant} className="gap-1">
+                        {config.icon}
+                        {config.label}
+                      </Badge>
+                    </TooltipTrigger>
+                    <TooltipContent className="max-w-xs">
+                      <p className="text-xs">{doc.error_message}</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              ) : (
+                <Badge variant={config.variant} className="gap-1">
+                  {config.icon}
+                  {config.label}
+                </Badge>
+              )}
+              <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => onDelete(doc.id)}>
+                <Trash2 className="h-3.5 w-3.5 text-muted-foreground" />
+              </Button>
             </div>
           </div>
-          <div className="flex items-center gap-2">
-            <Badge variant={statusColors[doc.status] || "outline"}>{doc.status}</Badge>
-            <Button variant="ghost" size="icon-xs" onClick={() => onDelete(doc.id)}>
-              <Trash2 className="h-3.5 w-3.5 text-muted-foreground" />
-            </Button>
-          </div>
-        </div>
-      ))}
+        );
+      })}
     </div>
   );
 }

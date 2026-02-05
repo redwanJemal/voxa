@@ -1,7 +1,14 @@
+import { useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useKnowledgeBases, useUploadDocument, useDeleteDocument } from "@/hooks/use-knowledge-base";
+import {
+  useKnowledgeBases,
+  useCreateKnowledgeBase,
+  useUploadDocument,
+  useDeleteDocument,
+  useDocuments,
+} from "@/hooks/use-knowledge-base";
 import { UploadZone } from "./upload-zone";
 import { DocumentList } from "./document-list";
 import { SearchTest } from "./search-test";
@@ -13,14 +20,29 @@ type Props = {
 
 export function KnowledgePage({ agentId }: Props) {
   const { data: kbs, isLoading } = useKnowledgeBases(agentId);
+  const createKb = useCreateKnowledgeBase(agentId);
   const kb = kbs?.[0];
-  const uploadDoc = useUploadDocument(kb?.id || "");
-  const deleteDoc = useDeleteDocument(kb?.id || "");
+  const kbId = kb?.id || "";
+
+  const { data: documents = [], isLoading: docsLoading } = useDocuments(kbId);
+  const uploadDoc = useUploadDocument(kbId);
+  const deleteDoc = useDeleteDocument(kbId);
+
+  // Auto-create a default KB if none exists
+  useEffect(() => {
+    if (!isLoading && kbs && kbs.length === 0 && !createKb.isPending && !createKb.isSuccess) {
+      createKb.mutate({ name: "Default" });
+    }
+  }, [isLoading, kbs, createKb.isPending, createKb.isSuccess]);
 
   const handleUpload = async (file: File) => {
+    if (!kbId) {
+      toast.error("No knowledge base available");
+      return;
+    }
     try {
       await uploadDoc.mutateAsync(file);
-      toast.success("Document uploaded");
+      toast.success("Document uploaded and processing started");
     } catch {
       toast.error("Upload failed");
     }
@@ -55,7 +77,11 @@ export function KnowledgePage({ agentId }: Props) {
             <TabsTrigger value="search">Test Search</TabsTrigger>
           </TabsList>
           <TabsContent value="documents" className="mt-4">
-            <DocumentList documents={[]} onDelete={handleDelete} />
+            {docsLoading ? (
+              <Skeleton className="h-32" />
+            ) : (
+              <DocumentList documents={documents} onDelete={handleDelete} />
+            )}
           </TabsContent>
           <TabsContent value="search" className="mt-4">
             <SearchTest kbId={kb.id} />

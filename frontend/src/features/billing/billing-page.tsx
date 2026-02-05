@@ -1,6 +1,9 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { PlanCard } from "./plan-card";
 import { UsageMeter } from "./usage-meter";
+import { useUsage } from "@/hooks/use-billing";
+import { useAgents } from "@/hooks/use-agents";
+import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
 
 const plans = [
@@ -10,12 +13,34 @@ const plans = [
   { name: "Enterprise", price: "Custom", features: ["Unlimited agents", "5 GB KB", "SLA"] },
 ];
 
+// Plan limits for free tier
+const PLAN_LIMITS = {
+  agents: 1,
+  kb_storage_mb: 10,
+  calls: 50,
+};
+
 export function BillingPage() {
   const currentPlan = "free";
+  const { data: usage, isLoading: usageLoading } = useUsage();
+  const { data: agents, isLoading: agentsLoading } = useAgents();
 
   const handleUpgrade = (plan: string) => {
     toast.info(`Upgrading to ${plan} — Stripe integration coming soon`);
   };
+
+  // Extract usage values from API response
+  const getUsageValue = (resource: string): number => {
+    if (!usage) return 0;
+    const item = usage.find((u) => u.resource === resource);
+    return item ? item.total : 0;
+  };
+
+  const agentCount = agents?.length ?? 0;
+  const kbUsageMB = Math.round(getUsageValue("kb_storage") / (1024 * 1024) * 100) / 100 || 0;
+  const callCount = getUsageValue("calls");
+
+  const isLoading = usageLoading || agentsLoading;
 
   return (
     <div className="space-y-6">
@@ -29,9 +54,19 @@ export function BillingPage() {
           <CardTitle>Current Usage</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          <UsageMeter label="Agents" current={1} limit={1} unit="agents" />
-          <UsageMeter label="Knowledge Base" current={2} limit={10} unit="MB" />
-          <UsageMeter label="Calls" current={12} limit={50} unit="calls" />
+          {isLoading ? (
+            <div className="space-y-4">
+              <Skeleton className="h-12" />
+              <Skeleton className="h-12" />
+              <Skeleton className="h-12" />
+            </div>
+          ) : (
+            <>
+              <UsageMeter label="Agents" current={agentCount} limit={PLAN_LIMITS.agents} unit="agents" />
+              <UsageMeter label="Knowledge Base" current={kbUsageMB} limit={PLAN_LIMITS.kb_storage_mb} unit="MB" />
+              <UsageMeter label="Calls" current={callCount} limit={PLAN_LIMITS.calls} unit="calls" />
+            </>
+          )}
         </CardContent>
       </Card>
 

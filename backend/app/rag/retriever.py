@@ -16,7 +16,10 @@ async def get_qdrant() -> AsyncQdrantClient:
     """Get or create Qdrant client."""
     global _qdrant_client
     if _qdrant_client is None:
-        _qdrant_client = AsyncQdrantClient(url=settings.QDRANT_URL)
+        kwargs: dict = {"url": settings.QDRANT_URL}
+        if settings.QDRANT_API_KEY:
+            kwargs["api_key"] = settings.QDRANT_API_KEY
+        _qdrant_client = AsyncQdrantClient(**kwargs)
     return _qdrant_client
 
 
