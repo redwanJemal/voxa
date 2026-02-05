@@ -18,10 +18,10 @@ class PlanTier(str, enum.Enum):
 
 # Default limits per plan
 PLAN_LIMITS: dict[PlanTier, dict[str, int]] = {
-    PlanTier.FREE: {"max_agents": 1, "max_kb_size_mb": 10, "max_concurrent_calls": 1},
-    PlanTier.STARTER: {"max_agents": 5, "max_kb_size_mb": 100, "max_concurrent_calls": 3},
-    PlanTier.PRO: {"max_agents": 25, "max_kb_size_mb": 500, "max_concurrent_calls": 10},
-    PlanTier.ENTERPRISE: {"max_agents": 100, "max_kb_size_mb": 5000, "max_concurrent_calls": 50},
+    PlanTier.FREE: {"max_agents": 3, "max_kb_size_mb": 50, "max_concurrent_calls": 1},
+    PlanTier.STARTER: {"max_agents": 10, "max_kb_size_mb": 200, "max_concurrent_calls": 5},
+    PlanTier.PRO: {"max_agents": 50, "max_kb_size_mb": 1000, "max_concurrent_calls": 20},
+    PlanTier.ENTERPRISE: {"max_agents": 500, "max_kb_size_mb": 10000, "max_concurrent_calls": 100},
 }
 
 
@@ -34,8 +34,8 @@ class Organization(BaseModel):
     slug: Mapped[str] = mapped_column(String(255), unique=True, index=True, nullable=False)
     plan: Mapped[PlanTier] = mapped_column(Enum(PlanTier), default=PlanTier.FREE, nullable=False)
     settings: Mapped[dict] = mapped_column(JSONB, default=dict, nullable=False)
-    max_agents: Mapped[int] = mapped_column(Integer, default=1, nullable=False)
-    max_kb_size_mb: Mapped[int] = mapped_column(Integer, default=10, nullable=False)
+    max_agents: Mapped[int] = mapped_column(Integer, default=3, nullable=False)
+    max_kb_size_mb: Mapped[int] = mapped_column(Integer, default=50, nullable=False)
     max_concurrent_calls: Mapped[int] = mapped_column(Integer, default=1, nullable=False)
 
     members = relationship("User", back_populates="organization")
