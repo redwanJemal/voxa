@@ -1,12 +1,6 @@
 const API_URL = import.meta.env.VITE_API_URL || "/api/v1";
 
-type RequestOptions = {
-  method?: string;
-  body?: unknown;
-  headers?: Record<string, string>;
-};
-
-class ApiError extends Error {
+export class ApiError extends Error {
   status: number;
   constructor(status: number, message: string) {
     super(message);
@@ -20,11 +14,56 @@ function getAuthHeaders(): Record<string, string> {
   return token ? { Authorization: `Bearer ${token}` } : {};
 }
 
+function clearAuth() {
+  localStorage.removeItem("voxa_token");
+  localStorage.removeItem("voxa_user");
+  localStorage.removeItem("voxa_refresh");
+}
+
+async function tryRefreshToken(): Promise<boolean> {
+  const refreshToken = localStorage.getItem("voxa_refresh");
+  if (!refreshToken) return false;
+
+  try {
+    const res = await fetch(`${API_URL}/auth/refresh`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ refresh_token: refreshToken }),
+    });
+    if (!res.ok) return false;
+
+    const data = await res.json();
+    localStorage.setItem("voxa_token", data.access_token);
+    localStorage.setItem("voxa_refresh", data.refresh_token);
+    if (data.user) {
+      localStorage.setItem("voxa_user", JSON.stringify(data.user));
+    }
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function redirectToLogin() {
+  clearAuth();
+  if (window.location.pathname !== "/login") {
+    window.location.href = "/login";
+  }
+}
+
+type RequestOptions = {
+  method?: string;
+  body?: unknown;
+  headers?: Record<string, string>;
+  skipAuthRetry?: boolean;
+};
+
 async function request<T>(
   endpoint: string,
   options: RequestOptions = {},
 ): Promise<T> {
-  const { method = "GET", body, headers = {} } = options;
+  const { method = "GET", body, headers = {}, skipAuthRetry = false } = options;
+
   const response = await fetch(`${API_URL}${endpoint}`, {
     method,
     headers: {
@@ -34,6 +73,16 @@ async function request<T>(
     },
     body: body ? JSON.stringify(body) : undefined,
   });
+
+  // Handle 401 — try refresh, then retry once
+  if (response.status === 401 && !skipAuthRetry) {
+    const refreshed = await tryRefreshToken();
+    if (refreshed) {
+      return request<T>(endpoint, { ...options, skipAuthRetry: true });
+    }
+    redirectToLogin();
+    throw new ApiError(401, "Session expired");
+  }
 
   if (!response.ok) {
     const error = await response
@@ -64,11 +113,13 @@ export const api = {
       headers: getAuthHeaders(),
       body: formData,
     });
-    if (!response.ok) {
-      throw new ApiError(response.status, "Upload failed");
+    if (response.status === 401) {
+      const refreshed = await tryRefreshToken();
+      if (refreshed) return api.upload<T>(endpoint, file);
+      redirectToLogin();
+      throw new ApiError(401, "Session expired");
     }
+    if (!response.ok) throw new ApiError(response.status, "Upload failed");
     return response.json();
   },
 };
-
-export { ApiError };
