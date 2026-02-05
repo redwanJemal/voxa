@@ -9,6 +9,7 @@ import {
   useDeleteDocument,
   useDocuments,
 } from "@/hooks/use-knowledge-base";
+import { useKBEvents } from "@/hooks/use-kb-events";
 import { UploadZone } from "./upload-zone";
 import { DocumentList } from "./document-list";
 import { SearchTest } from "./search-test";
@@ -28,6 +29,9 @@ export function KnowledgePage({ agentId }: Props) {
   const uploadDoc = useUploadDocument(kbId);
   const deleteDoc = useDeleteDocument(kbId);
 
+  // SSE: real-time updates from background processing
+  useKBEvents(kbId);
+
   // Auto-create a default KB if none exists
   useEffect(() => {
     if (!isLoading && kbs && kbs.length === 0 && !createKb.isPending && !createKb.isSuccess) {
@@ -42,7 +46,7 @@ export function KnowledgePage({ agentId }: Props) {
     }
     try {
       await uploadDoc.mutateAsync(file);
-      toast.success("Document uploaded and processing started");
+      toast.success("Document uploaded — processing in background");
     } catch {
       toast.error("Upload failed");
     }

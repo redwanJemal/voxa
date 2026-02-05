@@ -1,9 +1,12 @@
 """Knowledge base endpoints."""
 
+import asyncio
+import json
 from uuid import UUID
 
 import structlog
-from fastapi import APIRouter, Depends, UploadFile
+from fastapi import APIRouter, Depends, Query, Request, UploadFile
+from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_current_org_id
@@ -66,7 +69,7 @@ async def upload_document(
     org_id: UUID = Depends(get_current_org_id),
     db: AsyncSession = Depends(get_db),
 ):
-    """Upload a document to a knowledge base."""
+    """Upload a document — returns immediately, processes in background."""
     content = await file.read()
     return await knowledge_base_service.upload_document(
         kb_id,
@@ -75,6 +78,77 @@ async def upload_document(
         len(content),
         content,
         db,
+    )
+
+
+@router.get("/knowledge-bases/{kb_id}/events")
+async def stream_events(
+    kb_id: UUID,
+    request: Request,
+    token: str = Query(default=""),
+):
+    """SSE endpoint — streams real-time document processing events."""
+    # Auth via query param (EventSource can't set headers)
+    # We accept the JWT token as a query parameter for SSE
+    if token:
+        from app.core.security import verify_token
+        try:
+            verify_token(token)
+        except Exception:
+            from fastapi import HTTPException
+            raise HTTPException(status_code=401, detail="Invalid token")
+
+    async def event_generator():
+        import redis.asyncio as redis
+        from app.core.config import settings
+
+        client = redis.from_url(settings.REDIS_URL, decode_responses=True)
+        pubsub = client.pubsub()
+        channel = f"kb:{kb_id}:events"
+        await pubsub.subscribe(channel)
+
+        try:
+            # Send initial keepalive
+            yield f"event: connected\ndata: {json.dumps({'kb_id': str(kb_id)})}\n\n"
+
+            while True:
+                # Check if client disconnected
+                if await request.is_disconnected():
+                    break
+
+                message = await pubsub.get_message(
+                    ignore_subscribe_messages=True, timeout=1.0
+                )
+                if message and message["type"] == "message":
+                    data = message["data"]
+                    try:
+                        parsed = json.loads(data)
+                        event_type = parsed.pop("type", "update")
+                    except (json.JSONDecodeError, AttributeError):
+                        event_type = "update"
+                        parsed = {"raw": data}
+
+                    yield f"event: {event_type}\ndata: {json.dumps(parsed, default=str)}\n\n"
+                else:
+                    # Send keepalive every ~15s of silence
+                    yield ": keepalive\n\n"
+                    await asyncio.sleep(1)
+
+        except asyncio.CancelledError:
+            pass
+        finally:
+            await pubsub.unsubscribe(channel)
+            await pubsub.close()
+            await client.close()
+
+    return StreamingResponse(
+        event_generator(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no",
+        },
     )
 
 

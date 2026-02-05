@@ -53,14 +53,7 @@ export function useDocuments(kbId: string) {
     queryKey: ["documents", kbId],
     queryFn: () => api.get<Document[]>(`/knowledge-bases/${kbId}/documents`),
     enabled: !!kbId,
-    refetchInterval: (query) => {
-      // Poll while any document is pending/processing
-      const docs = query.state.data;
-      if (docs?.some((d) => d.status === "pending" || d.status === "processing")) {
-        return 3000;
-      }
-      return false;
-    },
+    // No polling needed — SSE (useKBEvents) handles real-time invalidation
   });
 }
 
