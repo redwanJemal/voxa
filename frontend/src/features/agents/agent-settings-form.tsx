@@ -11,7 +11,7 @@ import { toast } from "sonner";
 
 const schema = z.object({
   name: z.string().min(1),
-  description: z.string().optional(),
+  description: z.string().nullable().optional(),
   system_prompt: z.string().min(1),
   greeting_message: z.string().min(1),
   llm_model: z.string().min(1),

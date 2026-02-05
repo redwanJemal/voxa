@@ -8,7 +8,7 @@ type Props = {
   kbId: string;
 };
 
-export function SearchTest({ kbId }: Props) {
+export function SearchTest({ kbId: _kbId }: Props) {
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<Array<{ content: string; score: number }>>([]);
   const [isSearching, setIsSearching] = useState(false);
