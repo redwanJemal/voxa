@@ -16,27 +16,21 @@ class TTSService:
 
     async def synthesize(self, text: str) -> bytes:
         """Convert text to speech audio bytes."""
-        from deepgram import DeepgramClient, SpeakOptions
+        from deepgram import DeepgramClient
 
-        client = DeepgramClient(self.api_key)
-        options = SpeakOptions(model=self.voice)
-        response = await client.speak.asyncrest.v("1").stream_raw(
-            {"text": text}, options
-        )
+        client = DeepgramClient(api_key=self.api_key)
+        # SDK v5+ uses direct parameters instead of SpeakOptions
         audio_data = b""
-        async for chunk in response.stream:
+        for chunk in client.speak.v1.audio.generate(text=text, model=self.voice):
             audio_data += chunk
         logger.info("tts_complete", text_length=len(text), audio_bytes=len(audio_data))
         return audio_data
 
     async def synthesize_stream(self, text: str):
         """Stream TTS audio chunks."""
-        from deepgram import DeepgramClient, SpeakOptions
+        from deepgram import DeepgramClient
 
-        client = DeepgramClient(self.api_key)
-        options = SpeakOptions(model=self.voice)
-        response = await client.speak.asyncrest.v("1").stream_raw(
-            {"text": text}, options
-        )
-        async for chunk in response.stream:
+        client = DeepgramClient(api_key=self.api_key)
+        # SDK v5+ returns an iterator directly
+        for chunk in client.speak.v1.audio.generate(text=text, model=self.voice):
             yield chunk

@@ -17,12 +17,15 @@ class STTService:
 
     async def transcribe(self, audio_data: bytes, language: str = "en") -> str:
         """Transcribe audio bytes to text."""
-        from deepgram import DeepgramClient, PrerecordedOptions
+        from deepgram import DeepgramClient
 
-        client = DeepgramClient(self.api_key)
-        options = PrerecordedOptions(model="nova-2", language=language, smart_format=True)
-        response = await client.listen.asyncrest.v("1").transcribe_file(
-            {"buffer": audio_data, "mimetype": "audio/wav"}, options
+        client = DeepgramClient(api_key=self.api_key)
+        # SDK v5+ uses direct parameters instead of PrerecordedOptions
+        response = client.listen.v1.media.transcribe_file(
+            request=audio_data,
+            model="nova-2",
+            language=language,
+            smart_format=True,
         )
         transcript = response.results.channels[0].alternatives[0].transcript
         logger.info("transcription_complete", length=len(transcript))
