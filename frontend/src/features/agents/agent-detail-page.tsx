@@ -1,5 +1,5 @@
 import { useParams, Link } from "react-router-dom";
-import { ArrowLeft, BookOpen, Phone, Settings } from "lucide-react";
+import { ArrowLeft, BookOpen, Code, Phone, Settings } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -9,6 +9,7 @@ import { useApiKeys } from "@/hooks/use-api-keys";
 import { AgentSettingsForm } from "./agent-settings-form";
 import { KnowledgePage } from "@/features/knowledge/knowledge-page";
 import { LiveCall } from "@/features/calls/live-call";
+import { WidgetIntegration } from "./widget-integration";
 
 export function AgentDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -93,6 +94,9 @@ export function AgentDetailPage() {
           <TabsTrigger value="test-call" className="gap-2">
             <Phone className="h-4 w-4" /> Test Call
           </TabsTrigger>
+          <TabsTrigger value="widget" className="gap-2">
+            <Code className="h-4 w-4" /> Widget
+          </TabsTrigger>
         </TabsList>
         <TabsContent value="settings" className="mt-6">
           <AgentSettingsForm agent={agent} />
@@ -102,6 +106,9 @@ export function AgentDetailPage() {
         </TabsContent>
         <TabsContent value="test-call" className="mt-6">
           <LiveCall agentId={agent.id} agentName={agent.name} />
+        </TabsContent>
+        <TabsContent value="widget" className="mt-6">
+          <WidgetIntegration agentId={agent.id} agentName={agent.name} />
         </TabsContent>
       </Tabs>
     </div>
