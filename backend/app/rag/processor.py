@@ -17,7 +17,8 @@ SUPPORTED_TYPES = {
 
 
 async def process_document(
-    doc_id: str, content: bytes, content_type: str, collection_name: str
+    doc_id: str, content: bytes, content_type: str, collection_name: str,
+    openai_key: str | None = None
 ) -> int:
     """Process a document: extract text, chunk, embed, and store."""
     file_type = SUPPORTED_TYPES.get(content_type, "txt")
@@ -27,7 +28,7 @@ async def process_document(
         return 0
 
     chunks = chunk_text(text)
-    embeddings = await generate_embeddings(chunks)
+    embeddings = await generate_embeddings(chunks, api_key=openai_key)
     await ensure_collection(collection_name)
     count = await upsert_chunks(collection_name, chunks, embeddings, doc_id)
     logger.info("document_processed", doc_id=doc_id, chunks=count)

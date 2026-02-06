@@ -7,9 +7,11 @@ from uuid import UUID
 import structlog
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from app.core.database import async_session_factory
 from app.core.exceptions import NotFoundException
+from app.models.agent import Agent
 from app.models.knowledge_base import Document, DocumentStatus, KnowledgeBase
 from app.rag.processor import process_document
 from app.schemas.knowledge_base import (
@@ -17,7 +19,7 @@ from app.schemas.knowledge_base import (
     KnowledgeBaseCreate,
     KnowledgeBaseResponse,
 )
-from app.services import storage_service
+from app.services import provider_key_service, storage_service
 
 logger = structlog.get_logger("kb_service")
 
@@ -69,6 +71,10 @@ async def upload_document(
 ) -> DocumentResponse:
     """Save metadata + S3, return immediately, process in background."""
     kb = await _get_kb_or_raise(kb_id, db)
+    
+    # Get organization ID for API key lookup
+    agent = await db.get(Agent, kb.agent_id)
+    org_id_str = str(agent.organization_id) if agent else None
 
     doc = Document(
         knowledge_base_id=kb.id,
@@ -108,14 +114,14 @@ async def upload_document(
 
     # Fire background processing (new DB session, new event loop task)
     asyncio.create_task(
-        _process_document_background(kb_id_str, doc_id_str, filename, content_type, content)
+        _process_document_background(kb_id_str, doc_id_str, filename, content_type, content, org_id_str)
     )
 
     return response
 
 
 async def _process_document_background(
-    kb_id: str, doc_id: str, filename: str, content_type: str, content: bytes
+    kb_id: str, doc_id: str, filename: str, content_type: str, content: bytes, org_id: str | None
 ) -> None:
     """Process a document in the background with its own DB session."""
     try:
@@ -133,6 +139,15 @@ async def _process_document_background(
             doc.status = DocumentStatus.PROCESSING
             await db.commit()
 
+            # Fetch OpenAI key from organization's provider keys
+            openai_key = None
+            if org_id:
+                from uuid import UUID
+                openai_key = await provider_key_service.get_key(UUID(org_id), "openai", db)
+            
+            if not openai_key:
+                logger.warning("no_openai_key_for_embeddings", org_id=org_id)
+
             try:
                 collection_name = f"kb_{kb_id}"
                 chunk_count = await process_document(
@@ -140,6 +155,7 @@ async def _process_document_background(
                     content=content,
                     content_type=content_type,
                     collection_name=collection_name,
+                    openai_key=openai_key,
                 )
 
                 doc.status = DocumentStatus.COMPLETED
