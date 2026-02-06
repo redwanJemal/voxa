@@ -57,6 +57,10 @@ async def upsert_chunks(
 async def search(collection_name: str, query: str, top_k: int = 5) -> list[dict]:
     """Search collection using dense vector similarity."""
     client = await get_qdrant()
+    
+    # Ensure collection exists before searching
+    await ensure_collection(collection_name)
+    
     query_embedding = await generate_embedding(query)
     # Qdrant SDK v1.16+ uses query_points instead of search
     results = await client.query_points(
