@@ -223,6 +223,56 @@ async def delete_document(kb_id: UUID, doc_id: UUID, db: AsyncSession) -> None:
     logger.info("document_deleted", doc_id=str(doc_id))
 
 
+async def retry_document(kb_id: UUID, doc_id: UUID, db: AsyncSession) -> DocumentResponse:
+    """Retry processing a failed document by re-downloading from S3."""
+    result = await db.execute(
+        select(Document).where(Document.id == doc_id, Document.knowledge_base_id == kb_id)
+    )
+    doc = result.scalar_one_or_none()
+    if not doc:
+        raise NotFoundException("Document", str(doc_id))
+    
+    if doc.status not in (DocumentStatus.FAILED, DocumentStatus.PENDING):
+        from app.core.exceptions import BadRequestException
+        raise BadRequestException(f"Document is {doc.status.value}, not retriable")
+    
+    if not doc.storage_path:
+        from app.core.exceptions import BadRequestException
+        raise BadRequestException("Document has no storage path, cannot retry")
+    
+    # Get organization ID for API key lookup
+    kb = await _get_kb_or_raise(kb_id, db)
+    agent = await db.get(Agent, kb.agent_id)
+    org_id_str = str(agent.organization_id) if agent else None
+    
+    # Download content from S3
+    try:
+        content = await storage_service.get_file(doc.storage_path)
+    except Exception as exc:
+        doc.status = DocumentStatus.FAILED
+        doc.error_message = f"S3 download failed: {exc}"
+        await db.flush()
+        return DocumentResponse.model_validate(doc)
+    
+    # Reset status
+    doc.status = DocumentStatus.PENDING
+    doc.error_message = None
+    doc.chunk_count = 0
+    await db.flush()
+    
+    response = DocumentResponse.model_validate(doc)
+    
+    # Fire background processing
+    asyncio.create_task(
+        _process_document_background(
+            str(kb_id), str(doc_id), doc.filename, doc.content_type, content, org_id_str
+        )
+    )
+    
+    logger.info("document_retry_started", doc_id=str(doc_id))
+    return response
+
+
 async def _get_kb_or_raise(kb_id: UUID, db: AsyncSession) -> KnowledgeBase:
     """Get knowledge base by ID or raise."""
     kb = await db.get(KnowledgeBase, kb_id)

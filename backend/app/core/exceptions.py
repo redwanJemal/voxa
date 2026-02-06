@@ -46,6 +46,13 @@ class ValidationException(VoxaException):
         super().__init__(message=message, status_code=422)
 
 
+class BadRequestException(VoxaException):
+    """Bad request error."""
+
+    def __init__(self, message: str = "Bad request") -> None:
+        super().__init__(message=message, status_code=400)
+
+
 class VoiceServiceException(VoxaException):
     """Voice service error (STT/TTS)."""
 

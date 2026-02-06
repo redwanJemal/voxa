@@ -152,6 +152,17 @@ async def stream_events(
     )
 
 
+@router.post("/knowledge-bases/{kb_id}/documents/{doc_id}/retry", response_model=DocumentResponse)
+async def retry_document(
+    kb_id: UUID,
+    doc_id: UUID,
+    org_id: UUID = Depends(get_current_org_id),
+    db: AsyncSession = Depends(get_db),
+):
+    """Retry processing a failed document."""
+    return await knowledge_base_service.retry_document(kb_id, doc_id, db)
+
+
 @router.delete("/knowledge-bases/{kb_id}/documents/{doc_id}", response_model=MessageResponse)
 async def delete_document(
     kb_id: UUID,
