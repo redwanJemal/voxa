@@ -7,6 +7,7 @@ import {
   useCreateKnowledgeBase,
   useUploadDocument,
   useDeleteDocument,
+  useRetryDocument,
   useDocuments,
 } from "@/hooks/use-knowledge-base";
 import { useKBEvents } from "@/hooks/use-kb-events";
@@ -28,6 +29,7 @@ export function KnowledgePage({ agentId }: Props) {
   const { data: documents = [], isLoading: docsLoading } = useDocuments(kbId);
   const uploadDoc = useUploadDocument(kbId);
   const deleteDoc = useDeleteDocument(kbId);
+  const retryDoc = useRetryDocument(kbId);
 
   // SSE: real-time updates from background processing
   useKBEvents(kbId);
@@ -61,6 +63,15 @@ export function KnowledgePage({ agentId }: Props) {
     }
   };
 
+  const handleRetry = async (docId: string) => {
+    try {
+      await retryDoc.mutateAsync(docId);
+      toast.success("Retrying document indexing...");
+    } catch {
+      toast.error("Retry failed");
+    }
+  };
+
   if (isLoading) return <Skeleton className="h-64" />;
 
   return (
@@ -84,7 +95,7 @@ export function KnowledgePage({ agentId }: Props) {
             {docsLoading ? (
               <Skeleton className="h-32" />
             ) : (
-              <DocumentList documents={documents} onDelete={handleDelete} />
+              <DocumentList documents={documents} onDelete={handleDelete} onRetry={handleRetry} />
             )}
           </TabsContent>
           <TabsContent value="search" className="mt-4">

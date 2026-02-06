@@ -79,6 +79,16 @@ export function useDeleteDocument(kbId: string) {
   });
 }
 
+export function useRetryDocument(kbId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (docId: string) => api.post<Document>(`/knowledge-bases/${kbId}/documents/${docId}/retry`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["documents", kbId] });
+    },
+  });
+}
+
 export function useSearchKnowledgeBase(kbId: string) {
   return useMutation({
     mutationFn: (data: { query: string; top_k?: number }) =>

@@ -1,4 +1,4 @@
-import { FileText, Trash2, Loader2, AlertCircle, CheckCircle2, Clock } from "lucide-react";
+import { FileText, Trash2, Loader2, AlertCircle, CheckCircle2, Clock, RotateCw } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
@@ -18,6 +18,7 @@ type Document = {
 type Props = {
   documents: Document[];
   onDelete: (id: string) => void;
+  onRetry?: (id: string) => void;
 };
 
 function formatBytes(bytes: number): string {
@@ -52,7 +53,7 @@ const statusConfig: Record<
   },
 };
 
-export function DocumentList({ documents, onDelete }: Props) {
+export function DocumentList({ documents, onDelete, onRetry }: Props) {
   if (documents.length === 0) {
     return (
       <p className="py-8 text-center text-sm text-muted-foreground">
@@ -99,6 +100,20 @@ export function DocumentList({ documents, onDelete }: Props) {
                   {config.icon}
                   {config.label}
                 </Badge>
+              )}
+              {doc.status === "failed" && onRetry && (
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => onRetry(doc.id)}>
+                        <RotateCw className="h-3.5 w-3.5 text-muted-foreground" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p className="text-xs">Retry indexing</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
               )}
               <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => onDelete(doc.id)}>
                 <Trash2 className="h-3.5 w-3.5 text-muted-foreground" />
