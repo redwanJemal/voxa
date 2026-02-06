@@ -13,6 +13,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.database import async_session_factory
 from app.core.security import verify_token
 from app.models.agent import Agent
+from app.models.call import Call, CallStatus
 from app.models.knowledge_base import KnowledgeBase
 from app.models.user import User
 from app.services import provider_key_service
@@ -153,7 +154,21 @@ async def voice_websocket(
 
     await websocket.send_json({"type": "ready", "agent": agent.name})
 
+    # Create call record
+    call_id: UUID | None = None
+    async with async_session_factory() as db:
+        call = Call(
+            agent_id=UUID(agent_id),
+            organization_id=org_id,
+            status=CallStatus.IN_PROGRESS,
+        )
+        db.add(call)
+        await db.commit()
+        call_id = call.id
+        logger.info("call_started", call_id=str(call_id))
+
     audio_buffer = bytearray()
+    transcripts: list[dict] = []
     call_start = time.time()
 
     try:
@@ -198,6 +213,7 @@ async def voice_websocket(
                             "role": "user",
                             "text": user_text,
                         })
+                        transcripts.append({"role": "user", "text": user_text})
 
                         # Send agent transcript
                         await websocket.send_json({
@@ -205,6 +221,7 @@ async def voice_websocket(
                             "role": "assistant",
                             "text": agent_text,
                         })
+                        transcripts.append({"role": "assistant", "text": agent_text})
 
                         # Send audio in chunks (8KB each)
                         chunk_size = 8192
@@ -239,3 +256,20 @@ async def voice_websocket(
             agent_id=agent_id,
             duration_seconds=duration,
         )
+        
+        # Update call record
+        if call_id:
+            try:
+                async with async_session_factory() as db:
+                    call = await db.get(Call, call_id)
+                    if call:
+                        call.status = CallStatus.COMPLETED
+                        call.duration_seconds = duration
+                        # Format transcript as readable text
+                        call.transcript = "\n".join(
+                            f"{t['role'].title()}: {t['text']}" for t in transcripts
+                        )
+                        await db.commit()
+                        logger.info("call_completed", call_id=str(call_id), duration=duration)
+            except Exception as exc:
+                logger.error("call_update_failed", call_id=str(call_id), error=str(exc))
