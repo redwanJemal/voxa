@@ -1,5 +1,7 @@
 """Qdrant-based hybrid retriever for RAG."""
 
+import uuid
+
 import structlog
 from qdrant_client import AsyncQdrantClient
 from qdrant_client.models import Distance, PointStruct, VectorParams
@@ -36,6 +38,13 @@ async def ensure_collection(collection_name: str) -> None:
         logger.info("collection_created", name=collection_name)
 
 
+def _chunk_id(doc_id: str, chunk_index: int) -> str:
+    """Generate a deterministic UUID for a chunk based on doc_id and index."""
+    # Use uuid5 with a namespace to create deterministic, valid UUIDs
+    namespace = uuid.UUID("6ba7b810-9dad-11d1-80b4-00c04fd430c8")  # URL namespace
+    return str(uuid.uuid5(namespace, f"{doc_id}:{chunk_index}"))
+
+
 async def upsert_chunks(
     collection_name: str, chunks: list[str], embeddings: list[list[float]],
     doc_id: str, metadata: dict | None = None,
@@ -44,7 +53,7 @@ async def upsert_chunks(
     client = await get_qdrant()
     points = [
         PointStruct(
-            id=f"{doc_id}_{i}",
+            id=_chunk_id(doc_id, i),
             vector=embedding,
             payload={"content": chunk, "document_id": doc_id, "chunk_index": i, **(metadata or {})},
         )
