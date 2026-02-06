@@ -68,9 +68,19 @@ services:
     networks:
       - voxa-internal
 
+  qdrant:
+    image: qdrant/qdrant:latest
+    container_name: voxa-qdrant
+    restart: unless-stopped
+    volumes:
+      - voxa_qdrant:/qdrant/storage
+    networks:
+      - voxa-internal
+
 volumes:
   voxa_postgres:
   voxa_redis:
+  voxa_qdrant:
 
 networks:
   voxa-internal:

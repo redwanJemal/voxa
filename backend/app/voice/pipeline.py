@@ -2,6 +2,7 @@
 
 import structlog
 
+from app.rag import embeddings
 from app.rag.retriever import search
 from app.voice.llm import ConversationHandler
 from app.voice.stt import STTService
@@ -34,6 +35,11 @@ class VoicePipeline:
         self.tts = TTSService(voice=voice, api_key=keys.get("deepgram"))
         self.language = language
         self.collection_name = collection_name
+        self.openai_key = keys.get("openai")
+        
+        # Set OpenAI key for RAG embeddings
+        if self.openai_key:
+            embeddings.set_api_key(self.openai_key)
 
     async def process_audio(self, audio_data: bytes) -> tuple[str, str, bytes]:
         """Process audio input → text → LLM → audio output.

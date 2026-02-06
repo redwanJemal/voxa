@@ -37,6 +37,7 @@ class ConversationHandler:
         self.system_prompt = system_prompt
         self.api_key = api_key
         self.messages: list[dict[str, str]] = [{"role": "system", "content": system_prompt}]
+        logger.info("llm_handler_init", provider=provider, model=model, has_api_key=api_key is not None, key_preview=api_key[:10] if api_key else None)
 
     async def respond(self, user_input: str) -> str:
         """Generate a response to user input."""
@@ -51,6 +52,7 @@ class ConversationHandler:
         if self.api_key:
             kwargs["api_key"] = self.api_key
 
+        logger.info("llm_calling", model=kwargs["model"], has_api_key="api_key" in kwargs, key_in_kwargs=kwargs.get("api_key", "")[:15] if kwargs.get("api_key") else None)
         response = await litellm.acompletion(**kwargs)
         assistant_msg = response.choices[0].message.content or ""
         self.messages.append({"role": "assistant", "content": assistant_msg})

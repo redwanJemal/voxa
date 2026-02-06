@@ -140,6 +140,7 @@ async def voice_websocket(
         return
 
     # Build pipeline
+    logger.info("building_pipeline", llm_provider=llm_provider, keys_available=list(keys.keys()), has_openai="openai" in keys)
     pipeline = VoicePipeline(
         model=agent.llm_model,
         system_prompt=agent.system_prompt,

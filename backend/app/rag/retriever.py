@@ -58,11 +58,15 @@ async def search(collection_name: str, query: str, top_k: int = 5) -> list[dict]
     """Search collection using dense vector similarity."""
     client = await get_qdrant()
     query_embedding = await generate_embedding(query)
-    results = await client.search(
-        collection_name=collection_name, query_vector=query_embedding, limit=top_k
+    # Qdrant SDK v1.16+ uses query_points instead of search
+    results = await client.query_points(
+        collection_name=collection_name,
+        query=query_embedding,
+        limit=top_k,
+        with_payload=True,
     )
     return [
         {"content": r.payload.get("content", ""), "score": r.score,
          "document_id": r.payload.get("document_id", ""), "metadata": r.payload}
-        for r in results
+        for r in results.points
     ]
