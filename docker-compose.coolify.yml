@@ -8,16 +8,6 @@ services:
     networks:
       - voxa-internal
       - coolify
-    labels:
-      - traefik.enable=true
-      - "traefik.http.routers.voxa-http.entrypoints=http"
-      - "traefik.http.routers.voxa-http.rule=Host(`voxa.endlessmaker.com`)"
-      - "traefik.http.routers.voxa-http.middlewares=redirect-to-https"
-      - "traefik.http.routers.voxa-https.entrypoints=https"
-      - "traefik.http.routers.voxa-https.rule=Host(`voxa.endlessmaker.com`)"
-      - "traefik.http.routers.voxa-https.tls=true"
-      - "traefik.http.routers.voxa-https.tls.certresolver=letsencrypt"
-      - "traefik.http.services.voxa.loadbalancer.server.port=80"
 
   backend:
     build: ./backend
@@ -34,17 +24,6 @@ services:
     networks:
       - voxa-internal
       - coolify
-    labels:
-      - traefik.enable=true
-      - "traefik.http.routers.voxa-api-http.entrypoints=http"
-      - "traefik.http.routers.voxa-api-http.rule=Host(`voxa.endlessmaker.com`) && PathPrefix(`/api`)"
-      - "traefik.http.routers.voxa-api-http.middlewares=redirect-to-https"
-      - "traefik.http.routers.voxa-api-https.entrypoints=https"
-      - "traefik.http.routers.voxa-api-https.rule=Host(`voxa.endlessmaker.com`) && PathPrefix(`/api`)"
-      - "traefik.http.routers.voxa-api-https.tls=true"
-      - "traefik.http.routers.voxa-api-https.tls.certresolver=letsencrypt"
-      - "traefik.http.routers.voxa-api-https.priority=100"
-      - "traefik.http.services.voxa-api.loadbalancer.server.port=8000"
 
   celery-worker:
     build: ./backend
